@@ -1,0 +1,229 @@
+﻿$(document).ready(function () {
+
+    onload();
+});
+
+
+function onload() {
+
+    //Session DDL Fill
+    var ddlExam = document.getElementById("ddlExam");
+    while (ddlExam.firstChild) {
+        ddlExam.removeChild(ddlExam.firstChild);
+    }
+    $.ajax({
+        url: "../../Webservices/CommonWebservices.asmx/GetddlForExam",
+        type: "post",
+        data: '{}',
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        success: function (data) {
+
+            var s = data.d
+            var myObject = eval('(' + s + ')');
+            var o = document.createElement("option");
+            o.value = '';
+            o.text = "Select";
+            ddlExam.appendChild(o);
+            for (i in myObject) {
+                var o = document.createElement("option");
+                o.value = myObject[i]["Id"];
+                o.text = myObject[i]["ExamName"];
+                ddlExam.appendChild(o);
+            }
+
+        }
+    });
+}
+
+$('#ddlExam').on('change', function () {
+    var forExam = $("#ddlExam").val();
+    var method = "BYList";
+    var ddlDatesheet = document.getElementById("ddlDatesheet");
+    while (ddlDatesheet.firstChild) {
+        ddlDatesheet.removeChild(ddlDatesheet.firstChild);
+    }
+    $.ajax({
+        url: "../../WebServices/CommonWebServices.asmx/GetddlDateSheet",
+        type: "post",
+        data: '{ForExam:' + JSON.stringify(forExam) + ',method:' + JSON.stringify(method) + '}',
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        success: function (data) {
+
+            var s = data.d
+            var myObject = eval('(' + s + ')');
+            var o = document.createElement("option");
+            o.value = '';
+            o.text = "Select";
+            ddlDatesheet.appendChild(o);
+            for (i in myObject) {
+                var o = document.createElement("option");
+
+                o.value = myObject[i]["Id"];
+                o.text = myObject[i]["PaperCode"];
+                ddlDatesheet.appendChild(o);
+            }
+
+        }
+    });
+    GetList(forExam);
+   
+})
+
+function GetList(forExam) {
+    $("#kt_datatable tbody").empty()
+    $.ajax({
+        url: "UploadQuestionPaper.aspx/GetQuestionPaperList",
+        type: "post",
+        data: '{ForExam:' + JSON.stringify(forExam) + '}',
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        success: function (data) {
+            var myObject = data.d;
+
+            if (myObject != null) {
+                for (i in myObject) {
+                    var online = myObject[i]["IsOnline"]
+                    var css = '';
+                    var IsOnline = 0;
+                    if (online == "True") {
+                        online = "Online";
+                        css = "success";
+                        IsOnline=0
+                    }
+                    else {
+                        online = "Ofline";
+                        css = "danger";
+                        IsOnline=1
+                    }
+                    $("#kt_datatable tbody").append("<tr><td>" + myObject[i]["PaperCode"] + "</td><td>" + myObject[i]["ExamName"] + "</td><td>" + myObject[i]["ExamDate"] + "</td><td>" + online + "</td><td>" + myObject[i]["DownloadCounter"] + "</td><td><a title='Make Online/Offine' class='btn btn-icon btn-sm btn-light-" + css + "' href='#' onclick='MakeOnline(" + myObject[i]["Id"] + "," + IsOnline+")'><i class='far fa-dot-circle'></i></a><a title='Show Document' class=' ml-2 btn btn-sm btn-icon btn-light-primary' href='#' onclick='ShowDocumnet(" + myObject[i]["Id"] + ")'><i class='far fa-file-alt'></i></a></td></tr>")
+                }
+            }
+
+        }
+    });
+}
+
+$('#ddlDatesheet').on('change', function () {
+    var DateSheetId = $('#ddlDatesheet').val();
+    var method = "BYId";
+    $.ajax({
+        url: "UploadQuestionPaper.aspx/GetExamDetails",
+        type: "post",
+        data: '{ForExam:' + JSON.stringify(DateSheetId) + ',method:' + JSON.stringify(method) + '}',
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        success: function (data) {
+            var myobj = data.d;
+            document.getElementById("TXTExamDate").value = myobj["ExamDate"];
+            document.getElementById("TXTpapertype").value = myobj["PaperCode"];
+            document.getElementById("TxtExmStart").value = myobj["ExamStartTime"];
+            document.getElementById("TXTExmEnd").value = myobj["ExamEndTime"];
+        }
+    })
+})
+
+
+function encodeImageFileAsURL() {
+
+    var filesSelected = document.getElementById("FileUpload").files;
+    if (filesSelected.length > 0) {
+        var fileToLoad = filesSelected[0];
+
+        var fileReader = new FileReader();
+
+        fileReader.onload = function (fileLoadedEvent) {
+            var srcData = fileLoadedEvent.target.result; // <--- data: base64
+            document.getElementById("HftxnSlipImg").value = srcData;
+        }
+        fileReader.readAsDataURL(fileToLoad);
+    }
+}
+
+function UploadQuestionPaper() {
+   
+    var PaperCode= document.getElementById("TXTpapertype").value;
+    var ForExam= document.getElementById("ddlExam").value;
+    var DateSheetId = document.getElementById("ddlDatesheet").value;
+    var FileName = document.getElementById("HftxnSlipImg").value;
+    var IsOnline= '0';
+      
+    
+    $.ajax({
+        url: "UploadQuestionPaper.aspx/UploadQuestionPapers",
+        type: "post",
+        data: '{PaperCode:' + JSON.stringify(PaperCode) + ', ForExam:' + JSON.stringify(ForExam) + ', DateSheetId:' + JSON.stringify(DateSheetId) + ', FileName:' + JSON.stringify(FileName) + ', IsOnline:' + JSON.stringify(IsOnline) + '}',
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        success: function (data) {
+            var s = data.d
+            var myObject = eval('(' + s + ')');
+            var ForExam = document.getElementById("ddlExam").value;
+            GetList(ForExam);
+            SuccessAlert(myObject["msg"], myObject["type"]);
+        }
+    })
+}
+
+
+function SuccessAlert(massage, AlertType) {
+
+    toastr.options = {
+        "closeButton": false,
+        "debug": false,
+        "newestOnTop": false,
+        "progressBar": true,
+        "positionClass": "toast-top-right",
+        "preventDuplicates": false,
+        "showDuration": "300",
+        "hideDuration": "1000",
+        "timeOut": "5000",
+        "extendedTimeOut": "1000",
+        "showEasing": "swing",
+        "hideEasing": "linear",
+        "showMethod": "fadeIn",
+        "hideMethod": "fadeOut"
+    };
+    if (AlertType == "1") {
+
+        toastr.success(massage, "Success");
+        //$('#modal-Edit').modal('hide'); 
+    }
+    else {
+
+        toastr.error(massage, "Error");
+    }
+}
+
+function ShowDocumnet(Id) {
+    $.ajax({
+        url: "UploadQuestionPaper.aspx/GetQuestionPaperDocs",
+        type: "post",
+        data: '{Id:' + Id + '}',
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        success: function (data) {
+            var s = data.d
+            var myObject = s;//eval('(' + s + ')');
+            /*$("#FileView").val(myObject["FileName"])*/
+            document.getElementById("FileView").src = myObject["FileName"];
+            $("#modalViewImg").modal("show");
+        }
+    })
+}
+
+function MakeOnline(Id,IsOnline) {
+    $.ajax({
+        url: "UploadQuestionPaper.aspx/MakeOnlineOffline",
+        type: "post",
+        data: '{Id:' + Id + ', IsOnline:' + IsOnline + '}',
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        success: function (data) {
+            var ForExam = document.getElementById("ddlExam").value;
+            GetList(ForExam);
+            SuccessAlert("Update Successfully", 1);
+        }
+    })
+}
